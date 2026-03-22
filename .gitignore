@@ -1,0 +1,19 @@
+*.class
+*.log
+*.war
+
+.settings/
+.project
+.classpath
+
+out/
+build/
+target/
+
+# temporary compilation folders from root
+/com/
+/test/
+TestDB.java
+
+uploads/*
+!uploads/.gitkeep
