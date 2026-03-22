@@ -127,25 +127,7 @@ If this folder does not exist, create it.
 
 ## 7. Deploy to Tomcat 9
 
-You can deploy with VS Code or WAR.
-
-### Option A: VS Code deployment (beginner friendly)
-
-1. Install VS Code extensions:
-- Extension Pack for Java
-- Community Server Connectors (or Tomcat for Java)
-2. Open this project folder in VS Code.
-3. Register Tomcat 9 in VS Code (Server view) by pointing to your Tomcat installation folder, for example `C:\tomcat`.
-4. Add/deploy this web app to the Tomcat server from Server view.
-5. Start Tomcat from VS Code Server controls.
-
-If VS Code asks for Tomcat home path, use:
-
-```text
-C:\Tomcat
-```
-
-### Option B: WAR deployment
+### Option : WAR deployment
 
 1. Export project as WAR file.
 2. Copy WAR to Tomcat webapps folder.
@@ -399,20 +381,3 @@ What this script does:
 - copies `WebContent` into `C:\Tomcat\webapps\AJT`
 - copies compiled classes into `C:\Tomcat\webapps\AJT\WEB-INF\classes`
 - restarts Tomcat
-
-## 19. Community Server Connectors with JDK 17
-
-If Community Server Connectors fails on JDK 8, open VS Code with JDK 17:
-
-```bat
-cd C:\Users\Purvesh Rohit\OneDrive\Desktop\AJT
-scripts\start-vscode-jdk17.bat
-```
-
-To verify the launcher configuration only:
-
-```bat
-scripts\start-vscode-jdk17.bat --check
-```
-
-Then in VS Code, create/register Tomcat server from Server view.
