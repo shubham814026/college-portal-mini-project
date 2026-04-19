@@ -12,7 +12,9 @@
 <main class="container">
     <div class="row-between">
         <h2>Resource Library</h2>
-        <a class="btn btn-primary" href="${pageContext.request.contextPath}/student/upload.jsp">Upload File</a>
+        <c:if test="${sessionScope.role == 'STUDENT' || sessionScope.role == 'FACULTY'}">
+            <a class="btn btn-primary" href="${pageContext.request.contextPath}/student/upload.jsp">Upload File</a>
+        </c:if>
     </div>
     <c:if test="${param.success == 'uploaded' || param.success == '1'}"><div class="success-banner">File uploaded successfully.</div></c:if>
     <c:choose>

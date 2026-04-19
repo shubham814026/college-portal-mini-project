@@ -5,13 +5,15 @@ CREATE TABLE IF NOT EXISTS users (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     username VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(256) NOT NULL,
-    role ENUM('STUDENT', 'ADMIN') NOT NULL,
+    role ENUM('STUDENT', 'ADMIN', 'FACULTY') NOT NULL,
     full_name VARCHAR(100) NOT NULL,
     email VARCHAR(100),
     failed_attempts INT DEFAULT 0,
     locked_until DATETIME DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users MODIFY role ENUM('STUDENT', 'ADMIN', 'FACULTY') NOT NULL;
 
 CREATE TABLE IF NOT EXISTS notices (
     notice_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -63,9 +65,31 @@ CREATE TABLE IF NOT EXISTS logs (
     CONSTRAINT fk_log_user FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
+CREATE TABLE IF NOT EXISTS events (
+    event_id INT PRIMARY KEY AUTO_INCREMENT,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    event_type ENUM('CLASS', 'EXAM', 'EVENT') NOT NULL,
+    event_date DATE NOT NULL,
+    start_time TIME DEFAULT NULL,
+    end_time TIME DEFAULT NULL,
+    location VARCHAR(120) DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_event (title, event_date, start_time)
+);
+
 INSERT INTO users(username, password_hash, role, full_name, email)
 VALUES
 ('admin', SHA2('admin123', 256), 'ADMIN', 'System Admin', 'admin@college.local'),
 ('rahul', SHA2('rahul123', 256), 'STUDENT', 'Rahul Sharma', 'rahul@college.local'),
-('priya', SHA2('priya123', 256), 'STUDENT', 'Priya Verma', 'priya@college.local')
+('priya', SHA2('priya123', 256), 'STUDENT', 'Priya Verma', 'priya@college.local'),
+('faculty', SHA2('faculty123', 256), 'FACULTY', 'Faculty Member', 'faculty@college.local')
 ON DUPLICATE KEY UPDATE username = username;
+
+INSERT INTO events(title, description, event_type, event_date, start_time, end_time, location)
+VALUES
+('DSA Lecture', 'Weekly DSA lecture', 'CLASS', '2026-04-20', '09:00:00', '10:00:00', 'Room 101'),
+('OS Lab', 'Operating Systems practical', 'CLASS', '2026-04-22', '11:00:00', '13:00:00', 'Lab 2'),
+('Midterm Exam', 'Midterm examination (Unit 1-3)', 'EXAM', '2026-04-25', '10:00:00', '12:00:00', 'Main Hall'),
+('Tech Club Meet', 'Monthly club meetup', 'EVENT', '2026-04-27', '16:00:00', '17:00:00', 'Seminar Room')
+ON DUPLICATE KEY UPDATE title = title;

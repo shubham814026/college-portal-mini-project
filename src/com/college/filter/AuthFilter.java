@@ -66,6 +66,14 @@ public class AuthFilter implements Filter {
                 }
             }
 
+            if (path.startsWith("/faculty")) {
+                String role = (String) session.getAttribute("role");
+                if (!AppConstants.ROLE_FACULTY.equals(role) && !AppConstants.ROLE_ADMIN.equals(role)) {
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied.");
+                    return;
+                }
+            }
+
             chain.doFilter(req, res);
         } finally {
             RequestContext.clear();

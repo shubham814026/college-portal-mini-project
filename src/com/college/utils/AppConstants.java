@@ -6,6 +6,7 @@ public final class AppConstants {
 
     public static final String ROLE_ADMIN = "ADMIN";
     public static final String ROLE_STUDENT = "STUDENT";
+    public static final String ROLE_FACULTY = "FACULTY";
 
     public static final int SESSION_TIMEOUT_SECONDS = 30 * 60;
     public static final int TCP_CONNECT_TIMEOUT_MS = 2000;

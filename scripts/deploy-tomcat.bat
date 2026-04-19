@@ -6,10 +6,17 @@ set "BUILD_DIR=%ROOT%\build"
 set "CLASSES_DIR=%BUILD_DIR%\classes"
 set "SOURCES_FILE=%BUILD_DIR%\sources.txt"
 set "TOMCAT_HOME=%CATALINA_HOME%"
-if "%TOMCAT_HOME%"=="" set "TOMCAT_HOME=C:\Tomcat"
+if "%TOMCAT_HOME%"=="" set "TOMCAT_HOME=C:\apache-tomcat-9.0.117"
 set "CATALINA_HOME=%TOMCAT_HOME%"
 set "APP_NAME=AJT"
 set "WEBAPP_DIR=%TOMCAT_HOME%\webapps\%APP_NAME%"
+
+if "%JAVA_HOME%"=="" if "%JRE_HOME%"=="" (
+    for /d %%i in ("C:\Program Files\Java\jdk*") do set "JAVA_HOME=%%i"
+    if "!JAVA_HOME!"=="" for /d %%i in ("C:\Program Files\Java\jre*") do set "JRE_HOME=%%i"
+    if not "!JAVA_HOME!"=="" echo Automatically set JAVA_HOME to !JAVA_HOME!
+    if not "!JRE_HOME!"=="" echo Automatically set JRE_HOME to !JRE_HOME!
+)
 
 echo [1/6] Using Tomcat home: %TOMCAT_HOME%
 if not exist "%TOMCAT_HOME%\bin\startup.bat" (

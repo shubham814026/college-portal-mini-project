@@ -8,6 +8,12 @@
                 <li><a href="${pageContext.request.contextPath}/admin/alerts/new">Send Alert</a></li>
                 <li><a href="${pageContext.request.contextPath}/logs">View Logs</a></li>
             </c:when>
+            <c:when test="${sessionScope.role == 'FACULTY'}">
+                <li><a href="${pageContext.request.contextPath}/notices">Notices</a></li>
+                <li><a href="${pageContext.request.contextPath}/files">Files</a></li>
+                <li><a href="${pageContext.request.contextPath}/student/upload.jsp">Upload</a></li>
+                <li><a href="${pageContext.request.contextPath}/faculty/notices/new">Post Notice</a></li>
+            </c:when>
             <c:otherwise>
                 <li><a href="${pageContext.request.contextPath}/notices">Notices</a></li>
                 <li><a href="${pageContext.request.contextPath}/files">Files</a></li>

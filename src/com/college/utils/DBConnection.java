@@ -6,9 +6,9 @@ import java.sql.SQLException;
 
 public final class DBConnection {
     private static final String URL = resolveConfig(AppConstants.DB_URL_ENV, "college.db.url",
-            "jdbc:mysql://localhost:3306/college_db?useSSL=false&serverTimezone=UTC");
+            "jdbc:mysql://localhost:3306/college_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC");
     private static final String USER = resolveConfig(AppConstants.DB_USER_ENV, "college.db.user", "root");
-    private static final String PASS = resolveConfig(AppConstants.DB_PASS_ENV, "college.db.pass", "");
+    private static final String PASS = resolveConfig(AppConstants.DB_PASS_ENV, "college.db.pass", "1507");
 
     private DBConnection() {
     }

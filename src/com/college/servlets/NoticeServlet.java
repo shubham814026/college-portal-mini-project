@@ -12,14 +12,16 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
-@WebServlet({"/notices", "/admin/notices/new"})
+@WebServlet({"/notices", "/admin/notices/new", "/faculty/notices/new"})
 public class NoticeServlet extends BaseServlet {
     private final NoticeService noticeService = new NoticeService();
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        if ("/admin/notices/new".equals(req.getServletPath())) {
-            if (!AppConstants.ROLE_ADMIN.equals(currentRole(req))) {
+        if ("/admin/notices/new".equals(req.getServletPath()) || "/faculty/notices/new".equals(req.getServletPath())) {
+            String role = currentRole(req);
+            boolean canPost = AppConstants.ROLE_ADMIN.equals(role) || AppConstants.ROLE_FACULTY.equals(role);
+            if (!canPost) {
                 resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
                 return;
             }
@@ -38,7 +40,9 @@ public class NoticeServlet extends BaseServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-        if (!AppConstants.ROLE_ADMIN.equals(currentRole(req))) {
+        String role = currentRole(req);
+        boolean canPost = AppConstants.ROLE_ADMIN.equals(role) || AppConstants.ROLE_FACULTY.equals(role);
+        if (!canPost) {
             resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
             return;
         }
@@ -46,16 +50,23 @@ public class NoticeServlet extends BaseServlet {
         String title = InputSanitizer.normalizeText(req.getParameter("title"));
         String body = InputSanitizer.normalizeText(req.getParameter("body"));
         if (ValidationUtil.isBlank(title) || ValidationUtil.isBlank(body)) {
-            resp.sendRedirect(req.getContextPath() + "/admin/notices/new?error=validation");
+            resp.sendRedirect(req.getContextPath() + resolveComposerPath(role) + "?error=validation");
             return;
         }
 
         try {
             noticeService.postNotice(title, body, currentUserId(req));
-            resp.sendRedirect(req.getContextPath() + "/admin/notices/new?success=posted");
+            resp.sendRedirect(req.getContextPath() + resolveComposerPath(role) + "?success=posted");
         } catch (Exception e) {
             ServletResponseUtil.forwardError(req, resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                     "Failed to post notice.");
         }
+    }
+
+    private String resolveComposerPath(String role) {
+        if (AppConstants.ROLE_FACULTY.equals(role)) {
+            return "/faculty/notices/new";
+        }
+        return "/admin/notices/new";
     }
 }

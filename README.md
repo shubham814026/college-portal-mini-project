@@ -84,14 +84,17 @@ source C:/Users/Purvesh Rohit/OneDrive/Desktop/AJT/db/schema.sql;
 
 This creates:
 - college_db database
-- users, notices, messages, files, alerts, logs tables
+- users, notices, messages, files, alerts, logs, events tables
 - default users
+
+If you already created the DB earlier, re-run the updated db/schema.sql (or at least create the new events table) so the Student Dashboard calendar can load timetable/events.
 
 ### 4.2 Default credentials from seed
 
 - admin / admin123
 - rahul / rahul123
 - priya / priya123
+- faculty / faculty123
 
 ## 5. JDBC Configuration
 

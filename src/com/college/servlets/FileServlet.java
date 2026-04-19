@@ -2,6 +2,7 @@ package com.college.servlets;
 
 import com.college.models.FileMetadata;
 import com.college.service.FileService;
+import com.college.utils.AppConstants;
 import com.college.utils.FileStorageUtil;
 import com.college.utils.InputSanitizer;
 import com.college.utils.ServletResponseUtil;
@@ -40,6 +41,13 @@ public class FileServlet extends BaseServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
+        String role = currentRole(req);
+        boolean canUpload = AppConstants.ROLE_STUDENT.equals(role) || AppConstants.ROLE_FACULTY.equals(role);
+        if (!canUpload) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+            return;
+        }
+
         Part filePart = req.getPart("file");
         String subjectTag = InputSanitizer.normalizeText(req.getParameter("subjectTag"));
 

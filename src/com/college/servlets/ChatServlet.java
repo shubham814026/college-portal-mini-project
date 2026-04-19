@@ -2,6 +2,7 @@ package com.college.servlets;
 
 import com.college.service.ChatService;
 import com.college.models.Message;
+import com.college.utils.AppConstants;
 import com.college.utils.InputSanitizer;
 import com.college.utils.ServletResponseUtil;
 import com.college.utils.ValidationUtil;
@@ -16,8 +17,17 @@ import java.io.IOException;
 public class ChatServlet extends BaseServlet {
     private final ChatService chatService = new ChatService();
 
+    private boolean canUseChat(HttpServletRequest req) {
+        return AppConstants.ROLE_STUDENT.equals(currentRole(req));
+    }
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
+        if (!canUseChat(req)) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+            return;
+        }
+
         String action = req.getParameter("action");
         if ("history".equals(action)) {
             String with = InputSanitizer.normalizeText(req.getParameter("with"));
@@ -58,6 +68,11 @@ public class ChatServlet extends BaseServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        if (!canUseChat(req)) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+            return;
+        }
+
         String to = InputSanitizer.normalizeText(req.getParameter("to"));
         String message = InputSanitizer.normalizeText(req.getParameter("message"));
 
