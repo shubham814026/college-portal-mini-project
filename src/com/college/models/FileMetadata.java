@@ -15,88 +15,62 @@ public class FileMetadata {
     private int uploadedBy;
     private String uploadedByName;
     private LocalDateTime uploadedAt;
+    // V2 fields
+    private String branch;
+    private Integer yearOfStudy;
+    private Integer semester;
+    private String approvalStatus;
+    private Integer reviewedBy;
+    private LocalDateTime reviewedAt;
 
-    public int getFileId() {
-        return fileId;
-    }
+    public int getFileId() { return fileId; }
+    public void setFileId(int fileId) { this.fileId = fileId; }
 
-    public void setFileId(int fileId) {
-        this.fileId = fileId;
-    }
+    public String getOriginalName() { return originalName; }
+    public void setOriginalName(String originalName) { this.originalName = originalName; }
 
-    public String getOriginalName() {
-        return originalName;
-    }
+    public String getStoredName() { return storedName; }
+    public void setStoredName(String storedName) { this.storedName = storedName; }
 
-    public void setOriginalName(String originalName) {
-        this.originalName = originalName;
-    }
-
-    public String getStoredName() {
-        return storedName;
-    }
-
-    public void setStoredName(String storedName) {
-        this.storedName = storedName;
-    }
-
-    public long getFileSize() {
-        return fileSize;
-    }
-
-    public void setFileSize(long fileSize) {
-        this.fileSize = fileSize;
-    }
+    public long getFileSize() { return fileSize; }
+    public void setFileSize(long fileSize) { this.fileSize = fileSize; }
 
     public String getFileSizeDisplay() {
-        if (fileSize < KB) {
-            return fileSize + " B";
-        }
-        if (fileSize < MB) {
-            long value = Math.max(1L, fileSize / KB);
-            return value + " KB";
-        }
-        double value = (double) fileSize / MB;
-        return String.format("%.1f MB", value);
+        if (fileSize < KB) return fileSize + " B";
+        if (fileSize < MB) return Math.max(1L, fileSize / KB) + " KB";
+        return String.format("%.1f MB", (double) fileSize / MB);
     }
 
-    public String getFileType() {
-        return fileType;
-    }
+    public String getFileType() { return fileType; }
+    public void setFileType(String fileType) { this.fileType = fileType; }
 
-    public void setFileType(String fileType) {
-        this.fileType = fileType;
-    }
+    public String getSubjectTag() { return subjectTag; }
+    public void setSubjectTag(String subjectTag) { this.subjectTag = subjectTag; }
 
-    public String getSubjectTag() {
-        return subjectTag;
-    }
+    public int getUploadedBy() { return uploadedBy; }
+    public void setUploadedBy(int uploadedBy) { this.uploadedBy = uploadedBy; }
 
-    public void setSubjectTag(String subjectTag) {
-        this.subjectTag = subjectTag;
-    }
+    public String getUploadedByName() { return uploadedByName; }
+    public void setUploadedByName(String uploadedByName) { this.uploadedByName = uploadedByName; }
 
-    public int getUploadedBy() {
-        return uploadedBy;
-    }
+    public LocalDateTime getUploadedAt() { return uploadedAt; }
+    public void setUploadedAt(LocalDateTime uploadedAt) { this.uploadedAt = uploadedAt; }
 
-    public void setUploadedBy(int uploadedBy) {
-        this.uploadedBy = uploadedBy;
-    }
+    public String getBranch() { return branch; }
+    public void setBranch(String branch) { this.branch = branch; }
 
-    public String getUploadedByName() {
-        return uploadedByName;
-    }
+    public Integer getYearOfStudy() { return yearOfStudy; }
+    public void setYearOfStudy(Integer yearOfStudy) { this.yearOfStudy = yearOfStudy; }
 
-    public void setUploadedByName(String uploadedByName) {
-        this.uploadedByName = uploadedByName;
-    }
+    public Integer getSemester() { return semester; }
+    public void setSemester(Integer semester) { this.semester = semester; }
 
-    public LocalDateTime getUploadedAt() {
-        return uploadedAt;
-    }
+    public String getApprovalStatus() { return approvalStatus; }
+    public void setApprovalStatus(String approvalStatus) { this.approvalStatus = approvalStatus; }
 
-    public void setUploadedAt(LocalDateTime uploadedAt) {
-        this.uploadedAt = uploadedAt;
-    }
+    public Integer getReviewedBy() { return reviewedBy; }
+    public void setReviewedBy(Integer reviewedBy) { this.reviewedBy = reviewedBy; }
+
+    public LocalDateTime getReviewedAt() { return reviewedAt; }
+    public void setReviewedAt(LocalDateTime reviewedAt) { this.reviewedAt = reviewedAt; }
 }

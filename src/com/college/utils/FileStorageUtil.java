@@ -51,7 +51,7 @@ public final class FileStorageUtil {
         return storedName;
     }
 
-    public static void streamFile(File file, String downloadName, HttpServletResponse response) throws IOException {
+    public static void streamFile(File file, String downloadName, HttpServletResponse response, boolean inline) throws IOException {
         String safeDownloadName = InputSanitizer.safeFileName(downloadName);
         if (safeDownloadName == null) {
             safeDownloadName = "download.bin";
@@ -60,9 +60,23 @@ public final class FileStorageUtil {
         String encodedName = URLEncoder.encode(safeDownloadName, StandardCharsets.UTF_8.name())
                 .replace("+", "%20");
 
-        response.setContentType("application/octet-stream");
+        String contentType = "application/octet-stream";
+        if (inline) {
+            try {
+                contentType = java.nio.file.Files.probeContentType(file.toPath());
+                if (contentType == null) {
+                    // Fallback for some unknown types, though browser will decide
+                    contentType = "application/octet-stream";
+                }
+            } catch (IOException e) {
+                contentType = "application/octet-stream";
+            }
+        }
+
+        response.setContentType(contentType);
         response.setHeader("X-Content-Type-Options", "nosniff");
-        response.setHeader("Content-Disposition", "attachment; filename=\"" + safeDownloadName + "\"; filename*=UTF-8''" + encodedName);
+        String disposition = inline ? "inline" : "attachment";
+        response.setHeader("Content-Disposition", disposition + "; filename=\"" + safeDownloadName + "\"; filename*=UTF-8''" + encodedName);
         response.setContentLengthLong(file.length());
 
         try (InputStream in = new FileInputStream(file);

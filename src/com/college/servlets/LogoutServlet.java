@@ -1,26 +1,25 @@
 package com.college.servlets;
 
+import com.college.utils.JsonUtil;
 import com.college.utils.RmiClientUtil;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 
-@WebServlet("/logout")
+@WebServlet("/api/logout")
 public class LogoutServlet extends BaseServlet {
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         HttpSession session = req.getSession(false);
         if (session != null) {
             Integer userId = (Integer) session.getAttribute("userId");
             RmiClientUtil.safeLogEvent(userId, "LOGOUT");
             session.invalidate();
         }
-
-        resp.sendRedirect(req.getContextPath() + "/login");
+        JsonUtil.sendSuccess(resp, "{\"status\":\"ok\"}");
     }
 }

@@ -1,100 +1,115 @@
 package com.college.servlets;
 
-import com.college.service.ChatService;
+import com.college.dao.MessageDAO;
+import com.college.dao.UserDAO;
 import com.college.models.Message;
-import com.college.utils.AppConstants;
+import com.college.models.User;
+import com.college.service.ChatService;
 import com.college.utils.InputSanitizer;
-import com.college.utils.ServletResponseUtil;
+import com.college.utils.JsonUtil;
 import com.college.utils.ValidationUtil;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-@WebServlet("/chat")
+@WebServlet("/api/chat/*")
 public class ChatServlet extends BaseServlet {
     private final ChatService chatService = new ChatService();
-
-    private boolean canUseChat(HttpServletRequest req) {
-        return AppConstants.ROLE_STUDENT.equals(currentRole(req));
-    }
+    private final UserDAO userDAO = new UserDAO();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-        if (!canUseChat(req)) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
-            return;
-        }
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String pathInfo = req.getPathInfo();
 
-        String action = req.getParameter("action");
-        if ("history".equals(action)) {
+        if ("/history".equals(pathInfo)) {
             String with = InputSanitizer.normalizeText(req.getParameter("with"));
             if (ValidationUtil.isBlank(with)) {
-                ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_BAD_REQUEST,
-                        "{\"status\":\"invalid-request\",\"message\":\"Missing 'with' username.\"}");
+                JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Missing 'with' username");
                 return;
             }
-
             try {
                 int currentUserId = currentUserId(req);
-                java.util.List<Message> history = chatService.getDirectHistory(currentUserId, with);
-                StringBuilder sb = new StringBuilder();
-                sb.append("{\"status\":\"ok\",\"messages\":[");
-
+                List<Message> history = chatService.getDirectHistory(currentUserId, with);
+                List<String> items = new ArrayList<>();
                 for (int i = history.size() - 1; i >= 0; i--) {
                     Message msg = history.get(i);
-                    if (i < history.size() - 1) {
-                        sb.append(',');
-                    }
-                    sb.append("{\"fromSelf\":")
-                            .append(msg.getSenderId() == currentUserId ? "true" : "false")
-                            .append(",\"content\":\"")
-                            .append(ServletResponseUtil.escapeJson(msg.getContent()))
-                            .append("\"}");
+                    items.add(JsonUtil.object(
+                            "messageId", JsonUtil.num(msg.getMessageId()),
+                            "fromSelf", JsonUtil.bool(msg.getSenderId() == currentUserId),
+                            "senderId", JsonUtil.num(msg.getSenderId()),
+                            "content", JsonUtil.str(msg.getContent()),
+                            "sentAt", JsonUtil.date(msg.getSentAt())
+                    ));
                 }
-                sb.append("]}");
-                ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_OK, sb.toString());
+                JsonUtil.sendSuccess(resp, JsonUtil.object(
+                        "status", JsonUtil.str("ok"),
+                        "messages", JsonUtil.array(items)
+                ));
             } catch (Exception e) {
-                ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                        "{\"status\":\"history-error\"}");
+                JsonUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Could not load chat history.");
             }
             return;
         }
 
-        req.getRequestDispatcher("/student/chat.jsp").forward(req, resp);
+        if ("/contacts".equals(pathInfo)) {
+            try {
+                List<User> users = userDAO.findAll();
+                int currentId = currentUserId(req);
+                List<String> items = new ArrayList<>();
+                for (User u : users) {
+                    if (u.getUserId() != currentId) {
+                        items.add(JsonUtil.object(
+                                "userId", JsonUtil.num(u.getUserId()),
+                                "username", JsonUtil.str(u.getUsername()),
+                                "fullName", JsonUtil.str(u.getFullName()),
+                                "role", JsonUtil.str(u.getRole())
+                        ));
+                    }
+                }
+                JsonUtil.sendSuccess(resp, JsonUtil.array(items));
+            } catch (Exception e) {
+                JsonUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Could not load contacts.");
+            }
+            return;
+        }
+
+        JsonUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Unknown chat endpoint");
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        if (!canUseChat(req)) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+        String pathInfo = req.getPathInfo();
+
+        if ("/send".equals(pathInfo)) {
+            String body = JsonUtil.readBody(req);
+            String to = InputSanitizer.normalizeText(JsonUtil.extractString(body, "to"));
+            String message = InputSanitizer.normalizeText(JsonUtil.extractString(body, "message"));
+
+            if (ValidationUtil.isBlank(to) || ValidationUtil.isBlank(message)) {
+                JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
+                        "Recipient and message are required.");
+                return;
+            }
+
+            String from = (String) req.getSession(false).getAttribute("username");
+
+            try {
+                chatService.sendDirectMessage(from, to, message, currentUserId(req));
+                JsonUtil.sendSuccess(resp, "{\"status\":\"sent\"}");
+            } catch (IllegalArgumentException e) {
+                JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Recipient not found");
+            } catch (Exception e) {
+                JsonUtil.sendError(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE, "Chat service offline");
+            }
             return;
         }
 
-        String to = InputSanitizer.normalizeText(req.getParameter("to"));
-        String message = InputSanitizer.normalizeText(req.getParameter("message"));
-
-        if (ValidationUtil.isBlank(to) || ValidationUtil.isBlank(message)) {
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_BAD_REQUEST,
-                    "{\"status\":\"invalid-request\",\"message\":\"Recipient and message are required.\"}");
-            return;
-        }
-
-        String from = (String) req.getSession(false).getAttribute("username");
-
-        try {
-            chatService.sendDirectMessage(from, to, message, currentUserId(req));
-
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_OK, "{\"status\":\"sent\"}");
-        } catch (IllegalArgumentException e) {
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_BAD_REQUEST,
-                    "{\"status\":\"invalid-recipient\"}");
-        } catch (Exception e) {
-            System.err.println("Chat send failed: " + e.getMessage());
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                    "{\"status\":\"chat-offline\"}");
-        }
+        JsonUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "Unknown chat endpoint");
     }
 }

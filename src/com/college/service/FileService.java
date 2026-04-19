@@ -25,16 +25,34 @@ public class FileService {
 
     public void uploadFile(Part filePart, String originalName, String subjectTag, int userId, String uploadPath)
             throws IOException, SQLException {
+        uploadFileWithMeta(filePart, originalName, subjectTag, userId, uploadPath, null, null, null, "APPROVED");
+    }
+
+    public void uploadFileWithMeta(Part filePart, String originalName, String subjectTag, int userId,
+                                    String uploadPath, String branch, Integer year, Integer semester,
+                                    String approvalStatus) throws IOException, SQLException {
         long startedAt = System.currentTimeMillis();
         String storedName = FileStorageUtil.saveFile(filePart, originalName, uploadPath);
         String extension = originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase();
-        fileDAO.insertMetadata(originalName, storedName, filePart.getSize(), extension, userId, subjectTag);
+        fileDAO.insertMetadataFull(originalName, storedName, filePart.getSize(), extension, userId,
+                subjectTag, branch, year, semester, approvalStatus);
         RmiClientUtil.safeLogEvent(userId, "FILE_UPLOAD");
         System.out.println("[" + RequestContext.getRequestId() + "] FileService.uploadFile success in "
-            + (System.currentTimeMillis() - startedAt) + "ms");
+                + (System.currentTimeMillis() - startedAt) + "ms");
     }
 
     public File resolveStoredFile(String uploadPath, FileMetadata metadata) {
         return new File(uploadPath, metadata.getStoredName());
+    }
+
+    public void deleteFile(int fileId, String uploadPath) throws SQLException {
+        FileMetadata metadata = fileDAO.findById(fileId);
+        if (metadata != null) {
+            File physicalFile = new File(uploadPath, metadata.getStoredName());
+            if (physicalFile.exists()) {
+                physicalFile.delete();
+            }
+            fileDAO.deleteFile(fileId);
+        }
     }
 }

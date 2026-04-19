@@ -6,33 +6,32 @@ import com.college.service.AuthService.AuthResult;
 import com.college.service.AuthService.AuthStatus;
 import com.college.utils.AppConstants;
 import com.college.utils.InputSanitizer;
+import com.college.utils.JsonUtil;
 import com.college.utils.RmiClientUtil;
-import com.college.utils.ServletResponseUtil;
 import com.college.utils.ValidationUtil;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 
-@WebServlet("/login")
+@WebServlet("/api/login")
 public class LoginServlet extends BaseServlet {
     private final AuthService authService = new AuthService();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        req.getRequestDispatcher("/login.jsp").forward(req, resp);
-    }
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String body = JsonUtil.readBody(req);
+        String username = JsonUtil.extractString(body, "username");
+        String password = JsonUtil.extractString(body, "password");
 
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-        String username = InputSanitizer.normalizeText(req.getParameter("username"));
-        String password = InputSanitizer.normalizeText(req.getParameter("password"));
+        if (username != null) username = InputSanitizer.normalizeText(username);
+        if (password != null) password = InputSanitizer.normalizeText(password);
 
         if (ValidationUtil.isBlank(username) || ValidationUtil.isBlank(password)) {
-            resp.sendRedirect(req.getContextPath() + "/login?error=1");
+            JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
+                    "Username and password are required");
             return;
         }
 
@@ -41,17 +40,21 @@ public class LoginServlet extends BaseServlet {
             AuthStatus status = result.getStatus();
 
             if (status == AuthStatus.LOCKED) {
-                resp.sendRedirect(req.getContextPath() + "/login?locked=1");
+                JsonUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN,
+                        "Account locked. Try again after 15 minutes.");
                 return;
             }
 
             if (status == AuthStatus.INVALID_CREDENTIALS) {
-                resp.sendRedirect(req.getContextPath() + "/login?error=1");
+                JsonUtil.sendError(resp, HttpServletResponse.SC_UNAUTHORIZED,
+                        "Invalid username or password");
                 return;
             }
 
             if (status == AuthStatus.SERVICE_UNAVAILABLE) {
-                throw new IllegalStateException("Auth service unavailable");
+                JsonUtil.sendError(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                        "Authentication service unavailable. Please try again shortly.");
+                return;
             }
 
             User user = result.getUser();
@@ -59,13 +62,28 @@ public class LoginServlet extends BaseServlet {
             session.setAttribute("userId", user.getUserId());
             session.setAttribute("username", user.getUsername());
             session.setAttribute("role", user.getRole());
+            session.setAttribute("fullName", user.getFullName());
             session.setMaxInactiveInterval(AppConstants.SESSION_TIMEOUT_SECONDS);
 
             RmiClientUtil.safeLogEvent(user.getUserId(), "LOGIN");
-            resp.sendRedirect(req.getContextPath() + "/dashboard");
+
+            JsonUtil.sendSuccess(resp, JsonUtil.object(
+                    "status", JsonUtil.str("ok"),
+                    "user", userToJson(user)
+            ));
         } catch (Exception e) {
-            ServletResponseUtil.forwardError(req, resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+            JsonUtil.sendError(resp, HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                     "Authentication service unavailable. Please try again shortly.");
         }
+    }
+
+    static String userToJson(User u) {
+        return JsonUtil.object(
+                "userId", JsonUtil.num(u.getUserId()),
+                "username", JsonUtil.str(u.getUsername()),
+                "fullName", JsonUtil.str(u.getFullName()),
+                "role", JsonUtil.str(u.getRole()),
+                "email", JsonUtil.str(u.getEmail())
+        );
     }
 }

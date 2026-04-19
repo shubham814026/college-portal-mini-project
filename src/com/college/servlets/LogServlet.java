@@ -1,32 +1,43 @@
 package com.college.servlets;
 
 import com.college.dao.LogDAO;
+import com.college.models.LogEntry;
 import com.college.utils.AppConstants;
-import com.college.utils.ServletResponseUtil;
+import com.college.utils.JsonUtil;
 
-import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-@WebServlet("/logs")
+@WebServlet("/api/logs")
 public class LogServlet extends BaseServlet {
     private final LogDAO logDAO = new LogDAO();
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         if (!AppConstants.ROLE_ADMIN.equals(currentRole(req))) {
-            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+            JsonUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied");
             return;
         }
-
         try {
-            req.setAttribute("logs", logDAO.getAllLogs());
-            req.getRequestDispatcher("/admin/view_logs.jsp").forward(req, resp);
+            List<LogEntry> logs = logDAO.getAllLogs();
+            List<String> items = new ArrayList<>();
+            for (LogEntry l : logs) {
+                items.add(JsonUtil.object(
+                        "logId", JsonUtil.num(l.getLogId()),
+                        "userId", JsonUtil.num(l.getUserId()),
+                        "username", JsonUtil.str(l.getUsername()),
+                        "action", JsonUtil.str(l.getAction()),
+                        "ipAddress", JsonUtil.str(l.getIpAddress()),
+                        "loggedAt", JsonUtil.date(l.getLoggedAt())
+                ));
+            }
+            JsonUtil.sendSuccess(resp, JsonUtil.array(items));
         } catch (Exception e) {
-            ServletResponseUtil.forwardError(req, resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
-                    "Could not load logs.");
+            JsonUtil.sendError(resp, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Could not load logs.");
         }
     }
 }

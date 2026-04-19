@@ -1,6 +1,7 @@
 package com.college.filter;
 
 import com.college.utils.AppConstants;
+import com.college.utils.JsonUtil;
 import com.college.utils.RequestContext;
 
 import javax.servlet.Filter;
@@ -14,16 +15,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 @WebFilter("/*")
 public class AuthFilter implements Filter {
-    private static final Set<String> PUBLIC_PATHS = new HashSet<>(Arrays.asList(
-            "/login", "/login.jsp", "/error", "/"
-    ));
 
     @Override
     public void init(FilterConfig filterConfig) {
@@ -43,37 +38,39 @@ public class AuthFilter implements Filter {
         try {
             String path = request.getServletPath();
 
-            if (PUBLIC_PATHS.contains(path)
+            // Public paths — no auth required
+            if ("/api/login".equals(path)
                 || path.startsWith("/css")
                 || path.startsWith("/js")
-                || path.startsWith("/common")
                 || path.startsWith("/uploads")) {
                 chain.doFilter(req, res);
                 return;
             }
 
-            HttpSession session = request.getSession(false);
-            if (session == null || session.getAttribute("userId") == null) {
-                response.sendRedirect(request.getContextPath() + "/login?timeout=1");
+            // All /api/* paths require authentication
+            if (path.startsWith("/api/")) {
+                HttpSession session = request.getSession(false);
+                if (session == null || session.getAttribute("userId") == null) {
+                    JsonUtil.sendError(response, HttpServletResponse.SC_UNAUTHORIZED,
+                            "Authentication required");
+                    return;
+                }
+
+                // Admin-only paths
+                if (path.startsWith("/api/logs") || path.startsWith("/api/admin")) {
+                    String role = (String) session.getAttribute("role");
+                    if (!AppConstants.ROLE_ADMIN.equals(role)) {
+                        JsonUtil.sendError(response, HttpServletResponse.SC_FORBIDDEN,
+                                "Access denied");
+                        return;
+                    }
+                }
+
+                chain.doFilter(req, res);
                 return;
             }
 
-            if (path.startsWith("/admin")) {
-                String role = (String) session.getAttribute("role");
-                if (!AppConstants.ROLE_ADMIN.equals(role)) {
-                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied.");
-                    return;
-                }
-            }
-
-            if (path.startsWith("/faculty")) {
-                String role = (String) session.getAttribute("role");
-                if (!AppConstants.ROLE_FACULTY.equals(role) && !AppConstants.ROLE_ADMIN.equals(role)) {
-                    response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied.");
-                    return;
-                }
-            }
-
+            // Everything else — pass through (static files, etc.)
             chain.doFilter(req, res);
         } finally {
             RequestContext.clear();

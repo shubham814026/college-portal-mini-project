@@ -36,7 +36,7 @@ for /r "%ROOT%\src" %%f in (*.java) do (
 )
 
 echo [3/6] Compiling project classes...
-javac -cp "%ROOT%\WebContent\WEB-INF\lib\*" -d "%CLASSES_DIR%" @"%SOURCES_FILE%"
+"%JAVA_HOME%\bin\javac" -cp "%ROOT%\WebContent\WEB-INF\lib\*" -d "%CLASSES_DIR%" @"%SOURCES_FILE%"
 if errorlevel 1 (
     echo ERROR: Compilation failed.
     exit /b 1

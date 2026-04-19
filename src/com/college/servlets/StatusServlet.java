@@ -6,8 +6,8 @@ import com.college.models.Alert;
 import com.college.models.Notice;
 import com.college.network.NotificationQueue;
 import com.college.utils.ChatStatusClient;
+import com.college.utils.JsonUtil;
 import com.college.utils.RequestContext;
-import com.college.utils.ServletResponseUtil;
 
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-@WebServlet("/status")
+@WebServlet("/api/status")
 public class StatusServlet extends BaseServlet {
     private static final String LAST_ALERT_DB_ID = "lastAlertDbId";
     private static final String LAST_NOTICE_DB_ID = "lastNoticeDbId";
@@ -33,7 +33,7 @@ public class StatusServlet extends BaseServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         HttpSession session = req.getSession(false);
         if (session == null) {
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_UNAUTHORIZED, "{\"error\":\"Unauthorized\"}");
+            JsonUtil.sendError(resp, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
             return;
         }
 
@@ -45,19 +45,24 @@ public class StatusServlet extends BaseServlet {
         if ("alert".equals(type)) {
             NotificationQueue.Event event = NotificationQueue.pollAlert(sessionId);
             String alert = event == null ? fetchAlertFallback(session) : event.getPayload();
-            String payload = alert == null ? "{\"alert\":null}" : "{\"alert\":\"" + ServletResponseUtil.escapeJson(alert) + "\"}";
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_OK, payload);
+            String payload = alert == null
+                    ? "{\"alert\":null}"
+                    : JsonUtil.object("alert", JsonUtil.str(alert));
+            JsonUtil.sendSuccess(resp, payload);
             return;
         }
 
         if ("notice".equals(type)) {
             NotificationQueue.Event event = NotificationQueue.pollNotice(sessionId);
             String notice = event == null ? fetchNoticeFallback(session) : event.getPayload();
-            String payload = notice == null ? "{\"notice\":null}" : "{\"notice\":\"" + ServletResponseUtil.escapeJson(notice) + "\"}";
-            ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_OK, payload);
+            String payload = notice == null
+                    ? "{\"notice\":null}"
+                    : JsonUtil.object("notice", JsonUtil.str(notice));
+            JsonUtil.sendSuccess(resp, payload);
             return;
         }
 
+        // Online users
         String username = (String) session.getAttribute("username");
         if (username != null && !username.trim().isEmpty()) {
             CHAT_PRESENCE.put(username, System.currentTimeMillis());
@@ -76,33 +81,22 @@ public class StatusServlet extends BaseServlet {
                 users.add(u);
             }
         }
-        
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\"users\":[");
-        int i = 0;
+
+        List<String> userStrings = new ArrayList<>();
         for (String user : users) {
-            if (i++ > 0) {
-                sb.append(',');
-            }
-            sb.append('"').append(ServletResponseUtil.escapeJson(user)).append('"');
+            userStrings.add(JsonUtil.str(user));
         }
-        sb.append("]}");
-        ServletResponseUtil.sendJson(resp, HttpServletResponse.SC_OK, sb.toString());
+
+        JsonUtil.sendSuccess(resp, JsonUtil.object("users", JsonUtil.array(userStrings)));
     }
 
     private String fetchAlertFallback(HttpSession session) {
         try {
             List<Alert> recent = alertDAO.getRecentAlerts(1);
-            if (recent.isEmpty()) {
-                return null;
-            }
-
+            if (recent.isEmpty()) return null;
             Alert latest = recent.get(0);
             Integer lastSeen = (Integer) session.getAttribute(LAST_ALERT_DB_ID);
-            if (lastSeen != null && latest.getAlertId() <= lastSeen) {
-                return null;
-            }
-
+            if (lastSeen != null && latest.getAlertId() <= lastSeen) return null;
             session.setAttribute(LAST_ALERT_DB_ID, latest.getAlertId());
             return latest.getMessage();
         } catch (Exception e) {
@@ -114,18 +108,11 @@ public class StatusServlet extends BaseServlet {
     private String fetchNoticeFallback(HttpSession session) {
         try {
             List<Notice> recent = noticeDAO.getRecentActiveNotices(1);
-            if (recent.isEmpty()) {
-                return null;
-            }
-
+            if (recent.isEmpty()) return null;
             Notice latest = recent.get(0);
             Integer lastSeen = (Integer) session.getAttribute(LAST_NOTICE_DB_ID);
-            if (lastSeen != null && latest.getNoticeId() <= lastSeen) {
-                return null;
-            }
-
+            if (lastSeen != null && latest.getNoticeId() <= lastSeen) return null;
             session.setAttribute(LAST_NOTICE_DB_ID, latest.getNoticeId());
-            // Status notice payload remains notice-id-like to preserve existing polling contract.
             return String.valueOf(latest.getNoticeId());
         } catch (Exception e) {
             System.err.println("[" + RequestContext.getRequestId() + "] Notice DB fallback failed: " + e.getMessage());
