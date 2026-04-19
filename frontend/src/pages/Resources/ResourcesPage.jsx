@@ -10,14 +10,18 @@ export default function ResourcesPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [filter, setFilter] = useState({ branch: '', year: '', semester: '', subject: '' });
   const [folderPath, setFolderPath] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [previewFile, setPreviewFile] = useState(null);
   const { showToast, ToastView } = useToast();
 
   // Upload form state
-  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]);
   const [branch, setBranch] = useState('');
   const [year, setYear] = useState('');
   const [semester, setSemester] = useState('');
   const [subjectTag, setSubjectTag] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
 
   const loadFiles = () => {
     const params = {};
@@ -39,26 +43,45 @@ export default function ResourcesPage() {
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!uploadFile) return;
-    const formData = new FormData();
-    formData.append('file', uploadFile);
-    if (branch) formData.append('branch', branch);
-    if (year) formData.append('year', year);
-    if (semester) formData.append('semester', semester);
-    if (subjectTag) formData.append('subjectTag', subjectTag);
+    if (uploadFiles.length === 0) return;
 
-    try {
-      const res = await api.uploadFile(formData);
-      showToast(res.approvalStatus === 'PENDING'
-        ? 'File uploaded! Awaiting approval.'
-        : 'File uploaded successfully!');
-      setShowUpload(false);
-      setUploadFile(null);
-      setBranch(''); setYear(''); setSemester(''); setSubjectTag('');
-      loadFiles();
-    } catch (err) {
-      showToast(err.message, 'error');
+    setUploading(true);
+    setUploadProgress({ current: 0, total: uploadFiles.length });
+
+    let successCount = 0;
+    let pendingCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < uploadFiles.length; i++) {
+      setUploadProgress({ current: i + 1, total: uploadFiles.length });
+      const file = uploadFiles[i];
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('branch', branch);
+      if (year) formData.append('year', year);
+      if (semester) formData.append('semester', semester);
+      if (subjectTag) formData.append('subjectTag', subjectTag);
+
+      try {
+        const res = await api.uploadFile(formData);
+        if (res.approvalStatus === 'PENDING') pendingCount++;
+        else successCount++;
+      } catch (err) {
+        failCount++;
+      }
     }
+
+    setUploading(false);
+    const msgs = [];
+    if (successCount > 0) msgs.push(`${successCount} file(s) uploaded!`);
+    if (pendingCount > 0) msgs.push(`${pendingCount} file(s) awaiting approval.`);
+    if (failCount > 0) msgs.push(`${failCount} file(s) failed.`);
+    showToast(msgs.join(' '), failCount > 0 ? 'error' : 'success');
+
+    setShowUpload(false);
+    setUploadFiles([]);
+    setBranch(''); setYear(''); setSemester(''); setSubjectTag('');
+    loadFiles();
   };
 
   const handleDelete = async (fileId) => {
@@ -145,8 +168,22 @@ export default function ResourcesPage() {
               {filter.subject && <><span>/</span><span>{filter.subject}</span></>}
             </div>
 
-            {files.length === 0 ? (
-              <EmptyState icon="📂" message="No files in this folder." />
+            <div style={{ marginBottom: 16 }}>
+              <input type="text" className="input" placeholder="Search by name, subject, branch, year, semester..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+
+            {files.filter(f => {
+              if (!searchQuery) return true;
+              const q = searchQuery.toLowerCase();
+              return (f.originalName && f.originalName.toLowerCase().includes(q))
+                || (f.subjectTag && f.subjectTag.toLowerCase().includes(q))
+                || (f.branch && f.branch.toLowerCase().includes(q))
+                || (f.uploadedByName && f.uploadedByName.toLowerCase().includes(q))
+                || (f.yearOfStudy && String(f.yearOfStudy).includes(q))
+                || (f.semester && String(f.semester).includes(q))
+                || (f.fileType && f.fileType.toLowerCase().includes(q));
+            }).length === 0 ? (
+              <EmptyState icon="📂" message="No files found." />
             ) : (
               <div className="table-wrap">
                 <table>
@@ -162,7 +199,17 @@ export default function ResourcesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {files.map(f => (
+                    {files.filter(f => {
+                      if (!searchQuery) return true;
+                      const q = searchQuery.toLowerCase();
+                      return (f.originalName && f.originalName.toLowerCase().includes(q))
+                        || (f.subjectTag && f.subjectTag.toLowerCase().includes(q))
+                        || (f.branch && f.branch.toLowerCase().includes(q))
+                        || (f.uploadedByName && f.uploadedByName.toLowerCase().includes(q))
+                        || (f.yearOfStudy && String(f.yearOfStudy).includes(q))
+                        || (f.semester && String(f.semester).includes(q))
+                        || (f.fileType && f.fileType.toLowerCase().includes(q));
+                    }).map(f => (
                       <tr key={f.fileId} className="animate-fade-in">
                         <td style={{ fontWeight: 600 }}>{f.originalName}</td>
                         <td><span className="badge badge-blue">{f.fileType}</span></td>
@@ -173,11 +220,14 @@ export default function ResourcesPage() {
                           {new Date(f.uploadedAt).toLocaleDateString()}
                         </td>
                         <td>
-                          {['ADMIN', 'FACULTY'].includes(user?.role) && (
-                            <button onClick={() => handleDelete(f.fileId)} className="btn btn-sm btn-danger" style={{marginRight: 8}}>🗑 Delete</button>
-                          )}
-                          <a href={api.downloadUrl(f.fileId)} className="btn btn-sm btn-secondary"
-                            target="_blank" rel="noopener noreferrer">⬇ Download</a>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            {(['ADMIN', 'FACULTY'].includes(user?.role) || f.uploadedBy === user?.userId) && (
+                              <button onClick={() => handleDelete(f.fileId)} className="btn btn-sm btn-danger">🗑 Delete</button>
+                            )}
+                            <button className="btn btn-sm btn-secondary" onClick={() => setPreviewFile(f)}>👁 Preview</button>
+                            <a href={api.downloadUrl(f.fileId)} className="btn btn-sm btn-secondary"
+                              target="_blank" rel="noopener noreferrer">⬇ Download</a>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -193,15 +243,20 @@ export default function ResourcesPage() {
       <Modal open={showUpload} onClose={() => setShowUpload(false)} title="Upload File">
         <form onSubmit={handleUpload}>
           <div style={{ marginBottom: 14 }}>
-            <label className="label">File (pdf, docx, pptx, zip — max 10MB)</label>
-            <input type="file" className="input" onChange={e => setUploadFile(e.target.files[0])}
-              accept=".pdf,.docx,.pptx,.zip" required />
+            <label className="label">Files (select one or more)</label>
+            <input type="file" className="input" onChange={e => setUploadFiles(Array.from(e.target.files))}
+              multiple required />
+            {uploadFiles.length > 1 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                {uploadFiles.length} files selected
+              </div>
+            )}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
             <div>
-              <label className="label">Branch</label>
+              <label className="label">Branch *</label>
               <input className="input" value={branch} onChange={e => setBranch(e.target.value)}
-                placeholder="e.g. CS, IT, ECE" />
+                placeholder="e.g. CS, IT, ECE" required />
             </div>
             <div>
               <label className="label">Year</label>
@@ -228,12 +283,70 @@ export default function ResourcesPage() {
                 placeholder="e.g. DSA, OS" required />
             </div>
           </div>
+          {uploading && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                <span>Uploading file {uploadProgress.current} of {uploadProgress.total}...</span>
+                <span>{Math.round((uploadProgress.current / uploadProgress.total) * 100)}%</span>
+              </div>
+              <div style={{ width: '100%', height: 8, background: 'var(--bg-secondary)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${(uploadProgress.current / uploadProgress.total) * 100}%`,
+                  height: '100%',
+                  background: 'var(--gradient-1)',
+                  borderRadius: 4,
+                  transition: 'width 0.3s ease'
+                }} />
+              </div>
+            </div>
+          )}
           <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowUpload(false)}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Upload</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setShowUpload(false)} disabled={uploading}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={uploading}>
+              {uploading ? `Uploading ${uploadProgress.current}/${uploadProgress.total}...` : 'Upload'}
+            </button>
           </div>
         </form>
       </Modal>
+
+      {previewFile && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', zIndex: 9999,
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '12px 24px', background: 'var(--bg-card)', borderBottom: '1px solid var(--border)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{previewFile.originalName}</span>
+              <span className="badge badge-blue">{previewFile.fileType}</span>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <a href={api.downloadUrl(previewFile.fileId)} className="btn btn-sm btn-secondary" target="_blank" rel="noopener noreferrer">⬇ Download</a>
+              <button className="btn btn-sm btn-danger" onClick={() => setPreviewFile(null)}>✕ Close</button>
+            </div>
+          </div>
+          <div style={{ flex: 1, padding: 0 }}>
+            {(() => {
+              const name = (previewFile.originalName || '').toLowerCase();
+              const isOffice = name.endsWith('.docx') || name.endsWith('.pptx') || name.endsWith('.xlsx');
+              const inlineUrl = `${api.downloadUrl(previewFile.fileId)}&inline=true`;
+              if (isOffice) {
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16 }}>
+                    <div style={{ fontSize: 48 }}>📄</div>
+                    <div style={{ fontSize: 15, color: 'var(--text-muted)' }}>Office documents cannot be previewed in the browser.</div>
+                    <a href={api.downloadUrl(previewFile.fileId)} className="btn btn-primary" target="_blank" rel="noopener noreferrer">⬇ Download to View</a>
+                  </div>
+                );
+              }
+              return <iframe src={inlineUrl} style={{ width: '100%', height: '100%', border: 'none' }} title="Preview" />;
+            })()}
+          </div>
+        </div>
+      )}
 
       <ToastView />
     </>

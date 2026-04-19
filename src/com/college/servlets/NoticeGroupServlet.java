@@ -295,4 +295,45 @@ public class NoticeGroupServlet extends BaseServlet {
         }
         return JsonUtil.array(items);
     }
+
+    @Override
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        String pathInfo = req.getPathInfo();
+        int userId = currentUserId(req);
+
+        if (pathInfo == null) {
+            JsonUtil.sendError(resp, 400, "Unknown endpoint");
+            return;
+        }
+
+        // Leave group: /api/notice-groups/{id}/leave
+        if (pathInfo.matches("/\\d+/leave")) {
+            int groupId = Integer.parseInt(pathInfo.split("/")[1]);
+            try {
+                noticeGroupDAO.removeMember(groupId, userId);
+                JsonUtil.sendSuccess(resp, "{\"status\":\"ok\"}");
+            } catch (Exception e) {
+                JsonUtil.sendError(resp, 500, "Failed to leave group.");
+            }
+            return;
+        }
+
+        // Delete group: /api/notice-groups/{id}
+        if (pathInfo.matches("/\\d+")) {
+            int groupId = Integer.parseInt(pathInfo.substring(1));
+            try {
+                if (!noticeGroupDAO.isOwnerOrAdmin(groupId, userId)) {
+                    JsonUtil.sendError(resp, 403, "Not owner/admin");
+                    return;
+                }
+                noticeGroupDAO.deleteGroup(groupId);
+                JsonUtil.sendSuccess(resp, "{\"status\":\"ok\"}");
+            } catch (Exception e) {
+                JsonUtil.sendError(resp, 500, "Failed to delete group.");
+            }
+            return;
+        }
+
+        JsonUtil.sendError(resp, 404, "Unknown endpoint");
+    }
 }

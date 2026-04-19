@@ -79,4 +79,24 @@ public class NoticeDAO {
             }
         }
     }
+
+    public void updateNotice(int noticeId, String title, String body) throws SQLException {
+        String sql = "UPDATE notices SET title = ?, body = ? WHERE notice_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title);
+            ps.setString(2, body);
+            ps.setInt(3, noticeId);
+            ps.executeUpdate();
+        }
+    }
+
+    public void deleteNotice(int noticeId) throws SQLException {
+        String sql = "DELETE FROM notices WHERE notice_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, noticeId);
+            ps.executeUpdate();
+        }
+    }
 }

@@ -105,6 +105,26 @@ export default function NoticeGroupsPage() {
     } catch (err) { showToast(err.message, 'error'); }
   };
 
+  const handleDeleteGroup = async () => {
+    if (!window.confirm('Are you sure you want to delete this group? This cannot be undone.')) return;
+    try {
+      await api.deleteNoticeGroup(selectedGroup.groupId);
+      showToast('Group deleted');
+      setSelectedGroup(null);
+      loadData();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!window.confirm('Are you sure you want to leave this group?')) return;
+    try {
+      await api.leaveNoticeGroup(selectedGroup.groupId);
+      showToast('You left the group');
+      setSelectedGroup(null);
+      loadData();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
   if (loading) return <Spinner />;
 
   return (
@@ -164,6 +184,12 @@ export default function NoticeGroupsPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button className="btn btn-sm btn-secondary" onClick={() => setShowInvite(true)}>+ Invite</button>
+                    {selectedGroup.myRole === 'OWNER' && (
+                      <button className="btn btn-sm btn-danger" onClick={handleDeleteGroup}>🗑 Delete Group</button>
+                    )}
+                    {selectedGroup.myRole !== 'OWNER' && selectedGroup.myRole && (
+                      <button className="btn btn-sm btn-danger" onClick={handleLeaveGroup}>👋 Leave Group</button>
+                    )}
                     <button className="btn btn-sm btn-primary" onClick={() => setShowPostNotice(true)}>📝 Post Notice</button>
                   </div>
                 </div>

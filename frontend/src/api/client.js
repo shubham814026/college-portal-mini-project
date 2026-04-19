@@ -44,9 +44,19 @@ const api = {
   // Dashboard
   dashboard: () => request('/dashboard'),
 
-  // Notices (public)
+  // Notices
   getNotices: () => request('/notices'),
-  postNotice: (title, body) => request('/notices', { method: 'POST', body: { title, body } }),
+  postNotice: (title, body) => request('/notices', {
+    method: 'POST',
+    body: JSON.stringify({ title, body })
+  }),
+  updateNotice: (id, title, body) => request(`/notices/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ title, body })
+  }),
+  deleteNotice: (id) => request(`/notices/${id}`, {
+    method: 'DELETE'
+  }),
 
   // Notice Groups
   getMyNoticeGroups: () => request('/notice-groups/'),
@@ -60,6 +70,8 @@ const api = {
   getNoticeGroupMembers: (id) => request(`/notice-groups/${id}/members`),
   getPendingRequests: (id) => request(`/notice-groups/${id}/pending`),
   approveMember: (groupId, userId) => request(`/notice-groups/${groupId}/approve-member`, { method: 'POST', body: { userId } }),
+  deleteNoticeGroup: (id) => request(`/notice-groups/${id}`, { method: 'DELETE' }),
+  leaveNoticeGroup: (id) => request(`/notice-groups/${id}/leave`, { method: 'DELETE' }),
 
   // Files
   getFiles: (params) => {
@@ -89,6 +101,8 @@ const api = {
   sendChatGroupMessage: (id, message) => request(`/chat-groups/${id}/send`, { method: 'POST', body: { message } }),
   getChatGroupMembers: (id) => request(`/chat-groups/${id}/members`),
   inviteToChatGroup: (id, username) => request(`/chat-groups/${id}/invite`, { method: 'POST', body: { username } }),
+  deleteChatGroup: (id) => request(`/chat-groups/${id}`, { method: 'DELETE' }),
+  leaveChatGroup: (id) => request(`/chat-groups/${id}/leave`, { method: 'DELETE' }),
 
   // Status
   getOnlineUsers: () => request('/status'),

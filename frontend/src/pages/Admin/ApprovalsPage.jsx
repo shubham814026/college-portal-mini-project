@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import api from '../../api/client';
-import { PageHeader, Spinner, EmptyState, useToast } from '../../components/UI';
+import { PageHeader, Spinner, EmptyState, Modal, useToast } from '../../components/UI';
 
 export default function ApprovalsPage() {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [previewFile, setPreviewFile] = useState(null);
   const { showToast, ToastView } = useToast();
 
   const loadPending = () => {
@@ -48,8 +49,10 @@ export default function ApprovalsPage() {
                     <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(f.uploadedAt).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button className="btn btn-sm btn-success" onClick={() => handleAction(f.fileId, true)}>✅</button>
-                        <button className="btn btn-sm btn-danger" onClick={() => handleAction(f.fileId, false)}>❌</button>
+                        <button className="btn btn-sm btn-success" onClick={() => handleAction(f.fileId, true)}>✅ Approve</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => handleAction(f.fileId, false)}>❌ Reject</button>
+                        <button className="btn btn-sm btn-secondary" onClick={() => setPreviewFile(f)}>👁 Preview</button>
+                        <a href={api.downloadUrl(f.fileId)} className="btn btn-sm btn-secondary" target="_blank" rel="noopener noreferrer">⬇ Download</a>
                       </div>
                     </td>
                   </tr>
@@ -59,6 +62,28 @@ export default function ApprovalsPage() {
           </div>
         )}
       </div>
+      <Modal open={!!previewFile} onClose={() => setPreviewFile(null)} title={previewFile?.originalName}>
+        {previewFile && (() => {
+          const name = (previewFile.originalName || '').toLowerCase();
+          const isOffice = name.endsWith('.docx') || name.endsWith('.pptx') || name.endsWith('.xlsx');
+          const inlineUrl = `${api.downloadUrl(previewFile.fileId)}&inline=true`;
+          if (isOffice) {
+            return (
+              <div style={{ height: '65vh', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '8px 0' }}>
+                  ⚠️ Office documents (.docx, .pptx, .xlsx) cannot be previewed directly in the browser.
+                </div>
+                <a href={api.downloadUrl(previewFile.fileId)} className="btn btn-primary" target="_blank" rel="noopener noreferrer">⬇ Download to View</a>
+              </div>
+            );
+          }
+          return (
+            <div style={{ height: '65vh' }}>
+              <iframe src={inlineUrl} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 8 }} title="Preview" />
+            </div>
+          );
+        })()}
+      </Modal>
       <ToastView />
     </>
   );

@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @WebServlet("/api/files/*")
-@MultipartConfig(maxFileSize = 10485760, maxRequestSize = 10485760)
+@MultipartConfig
 public class FileServlet extends BaseServlet {
     private final FileService fileService = new FileService();
     private final FileDAO fileDAO = new FileDAO();
@@ -92,6 +92,11 @@ public class FileServlet extends BaseServlet {
             return;
         }
 
+        if (ValidationUtil.isBlank(branch)) {
+            JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Branch is compulsory.");
+            return;
+        }
+
         Integer year = null;
         Integer sem = null;
         try {
@@ -121,17 +126,6 @@ public class FileServlet extends BaseServlet {
         }
 
         String originalName = InputSanitizer.safeFileName(filePart.getSubmittedFileName());
-        if (!ValidationUtil.isAllowedFileExtension(originalName)) {
-            JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
-                    "Only .pdf, .docx, .pptx, and .zip files are allowed.");
-            return;
-        }
-
-        if (filePart.getSize() > FileStorageUtil.getMaxFileSize()) {
-            JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST,
-                    "File size exceeds the 10 MB limit.");
-            return;
-        }
 
         String uploadPath = getServletContext().getRealPath("/uploads");
         if (uploadPath == null) {
@@ -258,12 +252,6 @@ public class FileServlet extends BaseServlet {
 
     @Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-        String role = currentRole(req);
-        if (!AppConstants.ROLE_ADMIN.equals(role) && !AppConstants.ROLE_FACULTY.equals(role)) {
-            JsonUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied");
-            return;
-        }
-
         String pathInfo = req.getPathInfo();
         if (pathInfo == null || pathInfo.equals("/")) {
             JsonUtil.sendError(resp, HttpServletResponse.SC_BAD_REQUEST, "Missing file ID");
@@ -272,6 +260,20 @@ public class FileServlet extends BaseServlet {
 
         try {
             int fileId = Integer.parseInt(pathInfo.substring(1));
+            FileMetadata file = fileService.findById(fileId);
+            if (file == null) {
+                JsonUtil.sendError(resp, HttpServletResponse.SC_NOT_FOUND, "File not found");
+                return;
+            }
+
+            String role = currentRole(req);
+            int userId = currentUserId(req);
+            
+            if (!AppConstants.ROLE_ADMIN.equals(role) && !AppConstants.ROLE_FACULTY.equals(role) && file.getUploadedBy() != userId) {
+                JsonUtil.sendError(resp, HttpServletResponse.SC_FORBIDDEN, "Access denied");
+                return;
+            }
+
             String uploadPath = getServletContext().getRealPath("/uploads");
             if (uploadPath == null) {
                 uploadPath = System.getProperty("user.dir") + File.separator + "uploads";

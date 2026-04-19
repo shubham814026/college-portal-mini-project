@@ -234,4 +234,23 @@ public class NoticeGroupDAO {
             ps.executeUpdate();
         }
     }
+
+    public void removeMember(int groupId, int userId) throws SQLException {
+        String sql = "DELETE FROM notice_group_members WHERE group_id = ? AND user_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, groupId);
+            ps.setInt(2, userId);
+            ps.executeUpdate();
+        }
+    }
+
+    public void deleteGroup(int groupId) throws SQLException {
+        String sql = "DELETE FROM notice_groups WHERE group_id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, groupId);
+            ps.executeUpdate();
+        }
+    }
 }

@@ -11,6 +11,7 @@ export default function ChatPage() {
   const [selected, setSelected] = useState(null); // { type:'dm', username } or { type:'group', groupId, groupName }
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
@@ -74,8 +75,27 @@ export default function ChatPage() {
       showToast('Group created!');
       setShowCreate(false);
       setGroupName(''); setGroupDesc('');
-      const g = await api.getMyChatGroups();
-      setGroups(g);
+      loadData();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!window.confirm('Are you sure you want to delete this group?')) return;
+    try {
+      await api.deleteChatGroup(selected.groupId);
+      showToast('Group deleted');
+      setSelected(null);
+      loadData();
+    } catch (err) { showToast(err.message, 'error'); }
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!window.confirm('Are you sure you want to leave this group?')) return;
+    try {
+      await api.leaveChatGroup(selected.groupId);
+      showToast('You left the group');
+      setSelected(null);
+      loadData();
     } catch (err) { showToast(err.message, 'error'); }
   };
 
@@ -114,10 +134,14 @@ export default function ChatPage() {
             </div>
           )}
 
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+              <input type="text" className="input" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            </div>
+
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {tab === 'dm' ? (
-              contacts.length === 0 ? <EmptyState icon="👤" message="No contacts" /> :
-              contacts.map(c => (
+              contacts.filter(c => !searchQuery || c.username.toLowerCase().includes(searchQuery.toLowerCase()) || (c.fullName && c.fullName.toLowerCase().includes(searchQuery.toLowerCase()))).length === 0 ? <EmptyState icon="👤" message="No contacts found" /> :
+              contacts.filter(c => !searchQuery || c.username.toLowerCase().includes(searchQuery.toLowerCase()) || (c.fullName && c.fullName.toLowerCase().includes(searchQuery.toLowerCase()))).map(c => (
                 <div key={c.username} className={`chat-contact ${selected?.type === 'dm' && selected.username === c.username ? 'active' : ''}`}
                   onClick={() => setSelected({ type: 'dm', username: c.username })}>
                   <div className="avatar avatar-sm">{c.fullName?.[0] || c.username[0]}</div>
@@ -128,8 +152,8 @@ export default function ChatPage() {
                 </div>
               ))
             ) : (
-              groups.length === 0 ? <EmptyState icon="👥" message="No groups yet" /> :
-              groups.map(g => (
+              groups.filter(g => !searchQuery || g.groupName.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 ? <EmptyState icon="👥" message="No groups found" /> :
+              groups.filter(g => !searchQuery || g.groupName.toLowerCase().includes(searchQuery.toLowerCase())).map(g => (
                 <div key={g.groupId} className={`chat-contact ${selected?.type === 'group' && selected.groupId === g.groupId ? 'active' : ''}`}
                   onClick={() => setSelected({ type: 'group', groupId: g.groupId, groupName: g.groupName })}>
                   <div className="avatar avatar-sm" style={{ background: 'var(--gradient-2)' }}>
@@ -159,21 +183,24 @@ export default function ChatPage() {
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 background: 'var(--bg-secondary)',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="avatar avatar-sm">
-                    {selected.type === 'dm' ? selected.username[0].toUpperCase() : selected.groupName[0]}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div className="avatar avatar-sm" style={{ background: selected.type === 'group' ? 'var(--gradient-2)' : undefined }}>
+                    {selected.type === 'dm' ? selected.username[0].toUpperCase() : '👥'}
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15 }}>
-                      {selected.type === 'dm' ? selected.username : selected.groupName}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                      {selected.type === 'dm' ? 'Direct Message' : 'Group Chat'}
-                    </div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700 }}>{selected.type === 'dm' ? selected.username : selected.groupName}</h3>
+                    {selected.type === 'group' && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Group Chat</div>}
                   </div>
                 </div>
                 {selected.type === 'group' && (
-                  <button className="btn btn-sm btn-secondary" onClick={() => setShowInvite(true)}>+ Invite</button>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button className="btn btn-sm btn-secondary" onClick={() => setShowInvite(true)}>+ Invite</button>
+                    {groups.find(g => g.groupId === selected.groupId)?.myRole === 'OWNER' ? (
+                      <button className="btn btn-sm btn-danger" onClick={handleDeleteGroup}>🗑 Delete</button>
+                    ) : (
+                      <button className="btn btn-sm btn-danger" onClick={handleLeaveGroup}>👋 Leave</button>
+                    )}
+                  </div>
                 )}
               </div>
 
